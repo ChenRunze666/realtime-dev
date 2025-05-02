@@ -10,9 +10,8 @@
     <packaging>pom</packaging>
 
     <modules>
-<!--        <module>realtime-v1</module>-->
         <module>realtime-common</module>
-        <module>realtime-common</module>
+        <module>realtime-stream</module>
     </modules>
 
     <properties>
