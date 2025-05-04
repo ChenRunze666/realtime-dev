@@ -51,9 +51,6 @@ public class DwsTradeProvinceOrderWindow extends BaseApp {
                         Constant.TOPIC_DWD_TRADE_ORDER_DETAIL);
     }
 
-    public DwsTradeProvinceOrderWindow() {
-    }
-
     @Override
     public void handle(StreamExecutionEnvironment env, DataStreamSource<String> kafkaStrDS) {
         //TODO 1.过滤空消息  并对流中数据进行类型转换    jsonStr->jsonObj
@@ -208,9 +205,9 @@ public class DwsTradeProvinceOrderWindow extends BaseApp {
 
 
         //过滤数据
-//        SingleOutputStreamOperator<TradeProvinceOrderBean> filter = map.filter(o -> o.getCurDate().equals("2025-04-18"));
+        SingleOutputStreamOperator<TradeProvinceOrderBean> filter = map.filter(o -> o.getCurDate().equals("2025-05-04"));
         //TODO 10.将关联的结果写到Doris中
-        SingleOutputStreamOperator<String> map1 = map
+        SingleOutputStreamOperator<String> map1 = filter
                 .map(new BeanToJsonStrMapFunction<>());
         //map1-->:4> {"cur_date":"2025-04-28","edt":"2025-04-28 15:07:37","order_amount":27181.0,"order_count":3,"province_id":"9","province_name":"安徽","stt":"2025-04-28 15:07:36"}
         //map1-->:3> {"cur_date":"2025-04-28","edt":"2025-04-28 15:07:37","order_amount":11760.0,"order_count":2,"province_id":"5","province_name":"河北","stt":"2025-04-28 15:07:36"}

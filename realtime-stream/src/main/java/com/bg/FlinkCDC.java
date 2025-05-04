@@ -14,7 +14,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import java.util.Properties;
 
 /**
- * @Package com.test.FlinkCDC
+ * @Package com.bg.FlinkCDC
  * @Author Chen.Run.ze
  * @Date 2025/4/7 19:31
  * @description: Flink CDC
@@ -39,7 +39,7 @@ public class FlinkCDC {
                 .username("root")
                 .password("root")
                 .debeziumProperties(prop)
-                .startupOptions(StartupOptions.initial()) // 从最早位点启动
+                .startupOptions(StartupOptions.latest()) // 从最早位点启动
                 .deserializer(new JsonDebeziumDeserializationSchema()) // 将 SourceRecord 转换为 JSON 字符串
                 .build();
 
