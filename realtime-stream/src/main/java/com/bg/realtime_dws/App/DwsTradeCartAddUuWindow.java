@@ -133,7 +133,8 @@ public class DwsTradeCartAddUuWindow extends BaseApp {
         //TODO 7.将聚合的结果写到Doris
         //CartAddUuBean(stt=2025-04-16 09:46:56, edt=2025-04-16 09:46:57, curDate=2025-04-16, cartAddUuCt=12)
 //        aggregateDS.print();
-        SingleOutputStreamOperator<String> map = aggregateDS
+        SingleOutputStreamOperator<CartAddUuBean> filter = aggregateDS.filter(o -> o.getCurDate().equals("2025-05-04"));
+        SingleOutputStreamOperator<String> map = filter
                 .map((MapFunction<CartAddUuBean, String>) JSON::toJSONString);
         //{"cartAddUuCt":7,"curDate":"2025-04-15","edt":"2025-04-15 21:43:41","stt":"2025-04-15 21:43:40"}
         map.print("map-->");

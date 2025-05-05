@@ -34,7 +34,13 @@ public class DwsTrafficSourceKeywordPageViewWindow extends BaseSQLApp {
                 "     WATERMARK FOR et AS et\n" +
                 ")" + SQLUtil.getKafkaDDL(Constant.TOPIC_DWD_TRAFFIC_PAGE,"dws_traffic_source_keyword_page_view_window"));
 
-        tableEnv.executeSql("select * from page_log").print();
+        //+----+--------------------------------+--------------------------------+----------------------+-------------------------+
+        //| op |                         common |                           page |                   ts |                      et |
+        //+----+--------------------------------+--------------------------------+----------------------+-------------------------+
+        //| +I | {sid=2d062ec0-fc6b-41f2-9b9... | {item_type=sku_id, item=18,... |        1744771062000 | 2025-04-16 10:37:42.000 |
+        //| +I | {sid=2c00ceb2-2a52-433f-b42... | {item_type=sku_id, item=26,... |        1744771062000 | 2025-04-16 10:37:42.000 |
+        //| +I | {sid=158a90bd-6444-4a58-96a... | {during_time=10892, page_id... |        1744771062000 | 2025-04-16 10:37:42.000 |
+//        tableEnv.executeSql("select * from page_log").print();
 
         //TODO 过滤出搜索行为
         Table searchTable = tableEnv.sqlQuery("select \n" +
@@ -42,12 +48,26 @@ public class DwsTrafficSourceKeywordPageViewWindow extends BaseSQLApp {
                 "   et\n" +
                 "from page_log\n" +
                 "where page['last_page_id'] = 'search' and page['item_type'] ='keyword' and page['item'] is not null");
-        searchTable.execute().print();
+
+        //+----+--------------------------------+-------------------------+
+        //| op |                       fullword |                      et |
+        //+----+--------------------------------+-------------------------+
+        //| +I |                           衬衫 | 2025-04-16 10:37:43.000 |
+        //| +I |                         轻薄本 | 2025-04-16 10:37:47.000 |
+        //| +I |                           小米 | 2025-04-16 10:37:46.000 |
+//        searchTable.execute().print();
         tableEnv.createTemporaryView("search_table",searchTable);
         //TODO 调用自定义函数完成分词   并和原表的其它字段进行join
         Table splitTable = tableEnv.sqlQuery("SELECT keyword,et FROM search_table,\n" +
                 "LATERAL TABLE(ik_analyze(fullword)) t(keyword)");
         tableEnv.createTemporaryView("split_table",splitTable);
+
+        //+----+--------------------------------+-------------------------+
+        //| op |                        keyword |                      et |
+        //+----+--------------------------------+-------------------------+
+        //| +I |                           衬衫 | 2025-04-16 10:37:43.000 |
+        //| +I |                           小米 | 2025-04-16 10:37:46.000 |
+        //| +I |                           轻薄 | 2025-04-16 10:37:47.000 |
 //        tableEnv.executeSql("select * from split_table").print();
         //TODO 分组、开窗、聚合
         Table resTable = tableEnv.sqlQuery("SELECT \n" +
@@ -59,6 +79,13 @@ public class DwsTrafficSourceKeywordPageViewWindow extends BaseSQLApp {
                 "  FROM TABLE(\n" +
                 "    TUMBLE(TABLE split_table, DESCRIPTOR(et), INTERVAL '1' second))\n" +
                 "  GROUP BY window_start, window_end,keyword");
+
+        //+----+--------------------------------+--------------------------------+--------------------------------+--------------------------------+----------------------+
+        //| op |                            stt |                            edt |                       cur_date |                        keyword |        keyword_count |
+        //+----+--------------------------------+--------------------------------+--------------------------------+--------------------------------+----------------------+
+        //| +I |            2025-04-16 10:37:43 |            2025-04-16 10:37:44 |                     2025-04-16 |                           衬衫 |                    2 |
+        //| +I |            2025-04-16 10:37:43 |            2025-04-16 10:37:44 |                     2025-04-16 |                             抽 |                    2 |
+        //| +I |            2025-04-16 10:37:43 |            2025-04-16 10:37:44 |                     2025-04-16 |                           小米 |                    1 |
 //        resTable.execute().print();
         //TODO 将聚合的结果写到Doris中
         tableEnv.executeSql("create table dws_traffic_source_keyword_page_view_window(" +

@@ -123,7 +123,7 @@ public class DwdTradeRefundPaySucDetail extends BaseSQLApp {
         //| +I | 88 |     658 |     2559 |     26 |           4 |          1101 |            支付宝 |    2025-04-28 |   1745852863000 |           1 |          129.0 |   1745824063420 |
         //| +I | 89 |     682 |     2574 |      3 |          18 |          1101 |            支付宝 |    2025-04-28 |   1745852864000 |           1 |         6499.0 |   1745824064303 |
         result.execute().print();
-        result.executeInsert(Constant.TOPIC_DWD_TRADE_REFUND_PAYMENT_SUCCESS);
+//        result.executeInsert(Constant.TOPIC_DWD_TRADE_REFUND_PAYMENT_SUCCESS);
 
 
     }

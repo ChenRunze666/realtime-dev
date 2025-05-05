@@ -122,20 +122,26 @@ public class DwsTrafficHomeDetailPageViewWindow extends BaseApp {
         AllWindowedStream<TrafficHomeDetailPageViewBean, TimeWindow> windowDS = beanDS.windowAll(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.seconds(10)));
         //TODO 7.聚合
         SingleOutputStreamOperator<TrafficHomeDetailPageViewBean> reduceDS = windowDS.reduce(
-                (ReduceFunction<TrafficHomeDetailPageViewBean>) (value1, value2) -> {
-                    value1.setHomeUvCt(value1.getHomeUvCt() + value2.getHomeUvCt());
-                    value1.setGoodDetailUvCt(value1.getGoodDetailUvCt() + value2.getGoodDetailUvCt());
-                    return value1;
+                new ReduceFunction<TrafficHomeDetailPageViewBean>() {
+                    @Override
+                    public TrafficHomeDetailPageViewBean reduce(TrafficHomeDetailPageViewBean value1, TrafficHomeDetailPageViewBean value2) throws Exception {
+                        value1.setHomeUvCt(value1.getHomeUvCt() + value2.getHomeUvCt());
+                        value1.setGoodDetailUvCt(value1.getGoodDetailUvCt() + value2.getGoodDetailUvCt());
+                        return value1;
+                    }
                 },
-                (AllWindowFunction<TrafficHomeDetailPageViewBean, TrafficHomeDetailPageViewBean, TimeWindow>) (window, values, out) -> {
-                    TrafficHomeDetailPageViewBean viewBean = values.iterator().next();
-                    String stt = DateFormatUtil.tsToDateTime(window.getStart());
-                    String edt = DateFormatUtil.tsToDateTime(window.getEnd());
-                    String curDate = DateFormatUtil.tsToDate(window.getStart());
-                    viewBean.setStt(stt);
-                    viewBean.setEdt(edt);
-                    viewBean.setCurDate(curDate);
-                    out.collect(viewBean);
+                new AllWindowFunction<TrafficHomeDetailPageViewBean, TrafficHomeDetailPageViewBean, TimeWindow>() {
+                    @Override
+                    public void apply(TimeWindow window, Iterable<TrafficHomeDetailPageViewBean> values, Collector<TrafficHomeDetailPageViewBean> out) throws Exception {
+                        TrafficHomeDetailPageViewBean viewBean = values.iterator().next();
+                        String stt = DateFormatUtil.tsToDateTime(window.getStart());
+                        String edt = DateFormatUtil.tsToDateTime(window.getEnd());
+                        String curDate = DateFormatUtil.tsToDate(window.getStart());
+                        viewBean.setStt(stt);
+                        viewBean.setEdt(edt);
+                        viewBean.setCurDate(curDate);
+                        out.collect(viewBean);
+                    }
                 }
         );
         //TODO 8.将聚合的结果写到Doris

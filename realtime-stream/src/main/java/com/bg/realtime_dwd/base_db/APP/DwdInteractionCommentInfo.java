@@ -40,7 +40,7 @@ public class DwdInteractionCommentInfo extends BaseSQLApp {
         //| +I | 179 |     159 |      5 |    1201 | 评论内容：32968554319656951... |        1745824057013 | 2025-05-02 15:11:58.936 |
         //| +I | 180 |     639 |     21 |    1201 | 评论内容：76789679761799957... |        1745824057162 | 2025-05-02 15:11:58.937 |
         //| +I | 192 |     633 |     28 |    1201 | 评论内容：35866356159998484... |        1745824065207 | 2025-05-02 15:11:58.973 |
-        commentInfo.execute().print();
+//        commentInfo.execute().print();
         //将表对象注册到表执行环境中
         tableEnv.createTemporaryView("comment_info",commentInfo);
 
@@ -61,7 +61,7 @@ public class DwdInteractionCommentInfo extends BaseSQLApp {
         //| +I |  180 |     639 |     21 |     1201 |          好评 | 评论内容：76789679761799957... |        1745824057162 |
         //| +I |  181 |     639 |     35 |     1201 |          好评 | 评论内容：38131877512152427... |        1745824057166 |
         //| +I |  182 |     639 |      7 |     1201 |          好评 | 评论内容：86492987738569757... |        1745824057169
-//        joinedTable.execute().print();
+        joinedTable.execute().print();
 
         //TODO 将关联的结果写到kafka 主题中
         //7.1 创建动态表和要写入的主题进行映射
