@@ -1,0 +1,30 @@
+{
+  "op": "c",
+  "after": {
+    "create_time": 1746568494000,
+    "user_id": 126,
+    "appraise": "1202",
+    "comment_txt": "评论内容：43341158654483726916799957869464279782846343359228",
+    "nick_name": "琬琬",
+    "sku_id": 5,
+    "id": 77,
+    "spu_id": 2,
+    "order_id": 334,
+    "dic_name": "中评"
+  },
+  "source": {
+    "file": "mysql-bin.000004",
+    "connector": "mysql",
+    "pos": 29984187,
+    "name": "mysql_binlog_source",
+    "thread": 19913,
+    "row": 0,
+    "server_id": 1,
+    "version": "1.9.7.Final",
+    "ts_ms": 1746518022000,
+    "snapshot": "false",
+    "db": "realtime_v1",
+    "table": "comment_info"
+  },
+  "ts_ms": 1746518022747
+}

@@ -12,6 +12,7 @@
     <modules>
         <module>realtime-common</module>
         <module>realtime-stream</module>
+        <module>realtime-v2</module>
     </modules>
 
     <properties>
@@ -24,6 +25,7 @@
         <hadoop.version>3.3.4</hadoop.version>
         <flink-cdc.vesion>2.4.2</flink-cdc.vesion>
         <fastjson.version>1.2.83</fastjson.version>
+<!--        <hutool.version>5.8.21</hutool.version>-->
         <hbase.version>2.4.11</hbase.version>
     </properties>
 
@@ -64,6 +66,12 @@
             <scope>provided</scope>
         </dependency>
 
+<!--        <dependency>-->
+<!--            <groupId>cn.hutool</groupId>-->
+<!--            <artifactId>hutool-all</artifactId>-->
+<!--            <version>${hutool.version}</version>-->
+<!--            <scope>provided</scope>-->
+<!--        </dependency>-->
 
         <!--如果保存检查点到hdfs上，需要引入此依赖-->
         <dependency>
