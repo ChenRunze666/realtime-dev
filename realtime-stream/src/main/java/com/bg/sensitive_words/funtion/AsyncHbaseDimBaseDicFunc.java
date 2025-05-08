@@ -50,15 +50,21 @@ public class AsyncHbaseDimBaseDicFunc extends RichAsyncFunction<JSONObject,JSONO
 
     @Override
     public void asyncInvoke(JSONObject input, ResultFuture<JSONObject> resultFuture) throws Exception {
+        // 获取 appraise
         String appraise = input.getJSONObject("after").getString("appraise");
-        String rowKey = MD5Hash.getMD5AsHex(appraise.getBytes(StandardCharsets.UTF_8));
-        String cachedDicName = cache.getIfPresent(rowKey);
+        // 对row进行加密
+        // 散列原则
+//        String rowKey = MD5Hash.getMD5AsHex(appraise.getBytes(StandardCharsets.UTF_8));
+//        //7501e5d4da87ac39d782741cd794002d
+//        System.out.println(rowKey);
+//        String cachedDicName = cache.getIfPresent(rowKey);
+        // null
 //        System.out.println(cachedDicName);
-        if (cachedDicName != null) {
-            enrichAndEmit(input, cachedDicName, resultFuture);
+        if (appraise != null) {
+            enrichAndEmit(input, appraise, resultFuture);
         }
         CompletableFuture.supplyAsync(() -> {
-            Get get = new Get(rowKey.getBytes(StandardCharsets.UTF_8));
+            Get get = new Get(appraise.getBytes(StandardCharsets.UTF_8));
 //            System.out.println(get);
             try {
                 Result result = dimTable.get(get);
@@ -74,7 +80,7 @@ public class AsyncHbaseDimBaseDicFunc extends RichAsyncFunction<JSONObject,JSONO
         }).thenAccept(dicName -> {
 //            System.out.println(dicName);
             if (dicName != null) {
-                cache.put(rowKey, dicName);
+                cache.put(appraise, dicName);
                 enrichAndEmit(input, dicName, resultFuture);
             }else {
                 enrichAndEmit(input, "N/A", resultFuture);

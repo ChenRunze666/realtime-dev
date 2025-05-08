@@ -45,6 +45,14 @@ public class Constant {
 
     public static final String DORIS_DATABASE = "gmall2024_realtime";
 
+    public static final String API_TOKEN ="sk-beieqeglgildrmajhpstkjfcmrlcrhxufrsqamhwtqprlxmv";
+
+    public static final String TOPIC_fact_comment ="fact_comment";
+
+    public static final String TOPIC_sensitive_words ="sensitive_words";
+
+
+
 
 }
 
