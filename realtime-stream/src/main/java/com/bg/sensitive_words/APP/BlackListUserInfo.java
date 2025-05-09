@@ -70,9 +70,7 @@ public class BlackListUserInfo {
                 if (jsonObject.getIntValue("is_violation") == 0) {
                     String msg = jsonObject.getString("msg");
                     List<String> msgSen = SensitiveWordHelper.findAll(msg);
-                    for (int i = 0; i < msgSen.size(); i++) {
-                        System.out.println(msgSen.get(i));
-                    }
+
                     if (msgSen.size() > 0) {
                         jsonObject.put("violation_grade", "P1");
                         jsonObject.put("violation_msg", String.join(", ", msgSen));
