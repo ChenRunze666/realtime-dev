@@ -13,20 +13,25 @@ import java.io.IOException;
 public class WriteFileToRedis {
     public static void main(String[] args) {
         String file_path = "D:\\DaShuJu2\\workspace\\IdeaDemo\\realtime-dev\\realtime-stream\\src\\main\\resources\\Identify-sensitive-words.txt";
-        String redis_key = "sensitive_words";
-        try (Jedis jedis = new Jedis("cdh03", 6379);
-             BufferedReader reader = new BufferedReader(new FileReader(file_path))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // 使用 SADD 命令将每行敏感词作为元素添加到集合类型的 key 中
-                jedis.sadd(redis_key, line);
-                System.out.println("One sensitive word has been added to Redis with key: " + redis_key);
+        String redis_key = "sensitive_words2";
+        String redis_password = "123456"; // 替换成实际的Redis密码
+
+        try (Jedis jedis = new Jedis("cdh03", 6379)) {
+            // 进行认证
+            jedis.auth(redis_password);
+
+            try (BufferedReader reader = new BufferedReader(new FileReader(file_path))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    jedis.sadd(redis_key, line);
+                    System.out.println("已将敏感词添加到Redis，key为: " + redis_key);
+                }
+                System.out.println("文件中所有敏感词已添加到Redis");
+            } catch (IOException e) {
+                System.out.println("错误: 文件未找到");
             }
-            System.out.println("All sensitive words from the file have been added to Redis.");
-        } catch (IOException e) {
-            System.out.println("Error: The file was not found.");
         } catch (Exception e) {
-            System.out.println("An error occurred: " + e.getMessage());
+            System.out.println("发生错误: " + e.getMessage());
         }
     }
 }

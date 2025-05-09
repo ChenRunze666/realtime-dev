@@ -50,7 +50,7 @@ public class FlinkCDC {
                 // 设置 Debezium 属性
                 .debeziumProperties(prop)
                 // 启动选项，从最新位点开始捕获数据
-                .startupOptions(StartupOptions.latest()) // 从最早位点启动
+                .startupOptions(StartupOptions.initial()) // 从最早位点启动
                 // 反序列化器，将 SourceRecord 转换为 JSON 字符串
                 .deserializer(new JsonDebeziumDeserializationSchema()) // 将 SourceRecord 转换为 JSON 字符串
                 .build();

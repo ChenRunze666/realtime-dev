@@ -66,7 +66,7 @@ public class DwsTradeProvinceOrderWindow extends BaseApp {
                 }
         );
 
-//        jsonObjDS.print();
+        jsonObjDS.print();
 //        2> {"create_time":"1744063561000","sku_num":"2","split_original_amount":"2598.0000","split_coupon_amount":"0.00","sku_id":"6","user_id":"472","province_id":"26","sku_name":"Redmi 10X 4G Helio G85游戏芯 4800万超清四摄 5020mAh大电量 小孔全面屏 128GB大存储 8GB+128GB 冰雾白 游戏智能手机 小米 红米","id":"2259","order_id":"1490","split_activity_amount":"0.00","ts_ms":1744554504399,"split_total_amount":"2598.00"}
 
 //        //TODO 2.按照唯一键(订单明细的id)进行分组
@@ -175,7 +175,7 @@ public class DwsTradeProvinceOrderWindow extends BaseApp {
                 }
         );
 
-//        reduceDS.print();
+        reduceDS.print();
 //        1> TradeProvinceOrderBean(stt=2025-04-13 22:28:30, edt=2025-04-13 22:28:40, curDate=2025-04-13, provinceId=33, provinceName=, orderCount=76, orderAmount=153193.50, ts=null, orderIdSet=[89, 1583, 151, 1932, 154, 1216, 1930, 156, 1851, 996, 118, 955, 51, 1735, 54, 55, 57, 1908, 18, 1470, 1074, 162, 1745, 1149, 1666, 168, 763, 1587, 169, 1223, 1586, 1222, 966, 1906, 1707, 1946, 1901, 1080, 66, 23, 29, 130, 1679, 1831, 134, 1874, 179, 1278, 1870, 139, 72, 74, 1516, 34, 38, 39, 1693, 1646, 1921, 143, 1128, 1721, 1446, 1523, 1841, 102, 1245, 2015, 1200, 989, 83, 1968, 949, 1802, 1406, 42])
 
 //        //TODO 9.关联省份维度
@@ -203,11 +203,11 @@ public class DwsTradeProvinceOrderWindow extends BaseApp {
             }
         });
 
-
+        map.print("map-->");
         //过滤数据
-        SingleOutputStreamOperator<TradeProvinceOrderBean> filter = map.filter(o -> o.getCurDate().equals("2025-05-04"));
+//        SingleOutputStreamOperator<TradeProvinceOrderBean> filter = map.filter(o -> o.getCurDate().equals("2025-05-08"));
         //TODO 10.将关联的结果写到Doris中
-        SingleOutputStreamOperator<String> map1 = filter
+        SingleOutputStreamOperator<String> map1 = map
                 .map(new BeanToJsonStrMapFunction<>());
         //map1-->:4> {"cur_date":"2025-04-28","edt":"2025-04-28 15:07:37","order_amount":27181.0,"order_count":3,"province_id":"9","province_name":"安徽","stt":"2025-04-28 15:07:36"}
         //map1-->:3> {"cur_date":"2025-04-28","edt":"2025-04-28 15:07:37","order_amount":11760.0,"order_count":2,"province_id":"5","province_name":"河北","stt":"2025-04-28 15:07:36"}

@@ -12,6 +12,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.connector.hbase.sink.HBaseSinkFunction;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -38,12 +39,13 @@ public class BlackListUserInfo {
         //设置操作用户
         System.setProperty("HADOOP_USER_NAME","root");
 
-
+        //读取Kafka
         SingleOutputStreamOperator<String> kafkaCdcDbSource = env.fromSource(
                 FlinkSourceUtil.getKafkaSource(
                         Constant.TOPIC_fact_comment,
                         new Date().toString()
                 ),
+                //设置水位线
                 WatermarkStrategy.noWatermarks(),
                 "kafka_cdc_db_source"
         ).uid("kafka_fact_comment_source").name("kafka_fact_comment_source");
@@ -69,7 +71,7 @@ public class BlackListUserInfo {
                     String msg = jsonObject.getString("msg");
                     List<String> msgSen = SensitiveWordHelper.findAll(msg);
                     for (int i = 0; i < msgSen.size(); i++) {
-                        msgSen.get(i);
+                        System.out.println(msgSen.get(i));
                     }
                     if (msgSen.size() > 0) {
                         jsonObject.put("violation_grade", "P1");
@@ -80,9 +82,11 @@ public class BlackListUserInfo {
             }
         }).uid("second sensitive word check").name("second sensitive word check");
 
+        secondCheckMap.print();
         //转换类型
         SingleOutputStreamOperator<String> map = secondCheckMap.map(o -> o.toJSONString());
 
+        map.print();
         //写入Kafka
         map.sinkTo(FlinkSinkUtil.getKafkaSink(Constant.TOPIC_sensitive_words));
 

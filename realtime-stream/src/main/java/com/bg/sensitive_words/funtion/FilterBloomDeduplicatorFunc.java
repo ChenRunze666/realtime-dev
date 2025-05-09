@@ -17,20 +17,27 @@ import java.nio.charset.StandardCharsets;
  * @Author Chen.Run.ze
  * @Date 2025/5/8 18:15
  * @description: 布隆过滤器
+ *  对输入的 JSON 数据进行实时去重
+ *  使用 Bloom Filter 这种空间效率极高的概率型数据结构
+ *  能够在分布式环境下保持状态一致性
  */
 public class FilterBloomDeduplicatorFunc extends RichFilterFunction<JSONObject> {
 
     private static final Logger logger = LoggerFactory.getLogger(FilterBloomDeduplicatorFunc.class);
 
+    //预期插入的元素数量
     private final int expectedInsertions;
+    //期望的误判率
     private final double falsePositiveRate;
     private transient ValueState<byte[]> bloomState;
+
 
     public FilterBloomDeduplicatorFunc(int expectedInsertions, double falsePositiveRate) {
         this.expectedInsertions = expectedInsertions;
         this.falsePositiveRate = falsePositiveRate;
     }
 
+    // 初始化阶段创建并获取 Flink 的状态描述符
     @Override
     public void open(Configuration parameters){
         ValueStateDescriptor<byte[]> descriptor = new ValueStateDescriptor<>(
@@ -54,6 +61,7 @@ public class FilterBloomDeduplicatorFunc extends RichFilterFunction<JSONObject> 
         }
 
         boolean mightContain = true;
+        //右移
         int hash1 = hash(compositeKey);
         int hash2 = hash1 >>> 16;
 
