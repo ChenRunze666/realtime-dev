@@ -28,10 +28,10 @@ num_processes = 4
 properties = public_func.get_java_properties()
 
 db_config = {
-    'host': properties.get("mysql.host"),
-    'port': properties.get("mysql.port"),
-    'user': properties.get("mysql.user"),
-    'password': properties.get("mysql.pwd"),
+    'host': properties.get("cdh03"),
+    'port': properties.get("3306t"),
+    'user': properties.get("root"),
+    'password': properties.get("root"),
     'database': properties.get("mysql.spider.db")
 }
 
