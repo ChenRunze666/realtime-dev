@@ -1,4 +1,4 @@
-package com.bg.realtime_dim.function;
+package com.bg.common.function;
 
 import com.alibaba.fastjson.JSONObject;
 import com.bg.common.bean.TableProcessDim;
@@ -15,7 +15,7 @@ import java.sql.Connection;
 import java.util.*;
 
 /**
- * @Package com.bg.realtime_dim.function.TableProcessFunction
+ * @Package com.bg.common.function.TableProcessFunction
  * @Author Chen.Run.ze
  * @Date 2025/4/9 14:08
  * @description: 处理主流业务数据和广播流配置数据

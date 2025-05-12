@@ -1,5 +1,6 @@
 package com.bg.ods;
 
+import com.bg.common.constant.Constant;
 import com.bg.common.util.FlinkSinkUtil;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
@@ -16,7 +17,7 @@ import java.util.Properties;
  * @Date 2025/5/6 22:35
  * @description: Flink CDC 读取Mysql 数据
  */
-public class FlinkCDC {
+public class Flink_CDC {
     public static void main(String[] args) throws Exception {
 
         Properties prop = new Properties();
@@ -30,8 +31,8 @@ public class FlinkCDC {
         MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname("cdh03")
                 .port(3306)
-                .databaseList("realtime_v2") // 设置捕获的数据库， 如果需要同步整个数据库，请将 tableList 设置为 ".*".
-                .tableList("realtime_v2.*") // 设置捕获的表
+                .databaseList("gmall2024") // 设置捕获的数据库， 如果需要同步整个数据库，请将 tableList 设置为 ".*".
+                .tableList("gmall2024.*") // 设置捕获的表
                 .username("root")
                 .password("root")
                 .debeziumProperties(prop)
@@ -51,7 +52,8 @@ public class FlinkCDC {
 
         mySQLSource.print();
 
-        FlinkSinkUtil.getKafkaSink();
+        mySQLSource.sinkTo(FlinkSinkUtil.getKafkaSink(Constant.Topic_ods_db));
+
         env.execute("Print MySQL Snapshot + Binlog");
     }
 }

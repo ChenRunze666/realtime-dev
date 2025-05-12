@@ -1,4 +1,4 @@
-package com.bg.realtime_dim.function;
+package com.bg.common.function;
 
 import com.alibaba.fastjson.JSONObject;
 import com.bg.common.bean.TableProcessDim;
@@ -10,7 +10,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.hadoop.hbase.client.Connection;
 
 /**
- * @Package com.bg.realtime_dim.function.HBaseSinkFunction
+ * @Package com.bg.common.function.HBaseSinkFunction
  * @Author Chen.Run.ze
  * @Date 2025/4/9 14:45
  * @description: 将流中数据同步到HBase表中

@@ -7,7 +7,7 @@ package com.bg.common.constant;
  * @description: 常量类
  */
 public class Constant {
-    public static final String KAFKA_BROKERS = "cdh01:9092";
+    public static final String KAFKA_BROKERS = "cdh02:9092";
 
     public static final String TOPIC_DB = "topic_db";
     public static final String TOPIC_LOG = "ods_log";
@@ -50,6 +50,10 @@ public class Constant {
     public static final String TOPIC_fact_comment ="fact_comment";
 
     public static final String TOPIC_sensitive_words ="sensitive_words";
+
+    public static final String Topic_ods_db ="ods_db";
+
+
 
 
 

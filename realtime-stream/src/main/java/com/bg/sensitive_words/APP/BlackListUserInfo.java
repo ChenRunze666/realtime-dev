@@ -3,7 +3,6 @@ package com.bg.sensitive_words.APP;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.bg.common.constant.Constant;
-import com.bg.common.util.FlinkSinkUtil;
 import com.bg.common.util.FlinkSourceUtil;
 import com.bg.sensitive_words.funtion.FilterBloomDeduplicatorFunc;
 import com.bg.sensitive_words.funtion.MapCheckRedisSensitiveWordsFunc;
@@ -12,8 +11,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.connector.hbase.sink.HBaseSinkFunction;
-import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -58,6 +55,7 @@ public class BlackListUserInfo {
         SingleOutputStreamOperator<JSONObject> bloomFilterDs = mapJsonStr.keyBy(data -> data.getLong("order_id"))
                 .filter(new FilterBloomDeduplicatorFunc(1000000, 0.01));
 
+
         //2> {"msg":"商品质量差，颜色不对，味道刺鼻，使用后嘴唇干燥。,出售单管猎枪","consignee":"司空才","violation_grade":"","user_id":51,"violation_msg":"","is_violation":0,"ts_ms":1746366982888,"ds":"20250504"}
         SingleOutputStreamOperator<JSONObject> SensitiveWordsDs = bloomFilterDs.map(new MapCheckRedisSensitiveWordsFunc())
                 .uid("MapCheckRedisSensitiveWord")
@@ -86,10 +84,10 @@ public class BlackListUserInfo {
 
         map.print();
         //写入Kafka
-        map.sinkTo(FlinkSinkUtil.getKafkaSink(Constant.TOPIC_sensitive_words));
+//        map.sinkTo(FlinkSinkUtil.getKafkaSink(Constant.TOPIC_sensitive_words));
 
         //写入Doris
-        map.sinkTo(FlinkSinkUtil.getDorisSink("sensitive_words_user"));
+//        map.sinkTo(FlinkSinkUtil.getDorisSink("sensitive_words_user"));
 
         env.execute();
     }

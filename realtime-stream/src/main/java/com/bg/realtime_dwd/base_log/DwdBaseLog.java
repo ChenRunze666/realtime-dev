@@ -1,4 +1,4 @@
-package com.bg.realtime_dwd.base_log.split;
+package com.bg.realtime_dwd.base_log;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;

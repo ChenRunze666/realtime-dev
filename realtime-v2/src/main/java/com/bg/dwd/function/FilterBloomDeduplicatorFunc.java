@@ -1,4 +1,4 @@
-package com.bg.sensitive_words.funtion;
+package com.bg.dwd.function;
 
 import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.functions.RichFilterFunction;
@@ -64,10 +64,9 @@ public class FilterBloomDeduplicatorFunc extends RichFilterFunction<JSONObject> 
             // 可选：记录日志或者直接过滤掉
             return false; // 过滤掉 null 数据
         }
-
-        long orderId = value.getLong("order_id");
+        long unique = value.getJSONObject("after").getLong("id");
         long tsMs = value.getLong("ts_ms");
-        String compositeKey = orderId + "_" + tsMs;
+        String compositeKey = unique + "_" + tsMs;
 
         // 读取布隆过滤器状态
         byte[] bitArray = bloomState.value();

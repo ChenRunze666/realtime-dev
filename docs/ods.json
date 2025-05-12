@@ -1,10 +1,12 @@
 {
-  "msg": "Redmi 10X 4G游戏手机，电池续航一般，拍照效果差强人意，存储空间小，不值得购买。,高压警用电棍出售",
-  "consignee": "夏侯宁贵",
-  "violation_grade": "P0",
-  "user_id": 159,
-  "violation_msg": "高压警用电棍出售",
-  "is_violation": 1,
-  "ts_ms": 1745824057013,
-  "ds": "20250428"
+  "birthday": "1982-03-17",
+  "create_time": 1744902207000,
+  "gender": "M",
+  "constellation": "双鱼座",
+  "Era": "1980年代",
+  "name": "岑栋维",
+  "id": 507,
+  "ageGroup": "40-49",
+  "ts_ms": "1747019493918",
+  "age": 43
 }
