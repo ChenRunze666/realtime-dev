@@ -1,13 +1,17 @@
 package com.bg.dwd.APP;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.bg.common.constant.Constant;
 import com.bg.common.util.EnvironmentSettingUtils;
 import com.bg.common.util.FlinkSourceUtil;
+import com.bg.common.util.HBaseUtil;
 import com.bg.dwd.function.FilterBloomDeduplicatorFunc;
-import com.bg.dwd.function.BirthdayAgeFun;
-import com.bg.dwd.function.JudgmentFun;
+import com.bg.dwd.function.LogFilterFun;
+import com.bg.dwd.function.PublicFilterBloomFunc;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -15,148 +19,277 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
+import org.apache.hadoop.hbase.client.Connection;
 
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 /**
  * @Package com.bg.dwd.APP.DwdAge
  * @Author Chen.Run.ze
- * @Date 2025/5/12 11:26
- * @description: Dwd层  用户年龄标签
+ * @Date 2025/5/12 22:04
+ * @description: 年龄标签
  */
 public class DwdAge {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         EnvironmentSettingUtils.defaultParameter(env);
 
-        // TODO 1.从Kafka获取数据
-        KafkaSource<String> source = FlinkSourceUtil.getKafkaSource("ods_db", "ods_db");
-        // 设置水位线
-        DataStreamSource<String> kafkaSource = env.fromSource(source,
+        //TODO 品类   订单 --> 明细&用户- -> sku --> 品牌 --> 三级品类 --> 二级品类 --> 一级品类 --> 日志
+        //关联所有的表，求出每个uid年龄的判断条件（json类型），根据年龄段求出总和，年龄段进行修改
+
+        //TODO 1.读取Kafka数据源
+        //获取 DWD_APP 数据
+        //{"birthday":"1990-12-28","create_time":1745852862000,"gender":"M","weight":"65","ageGroup":"30-34","constellation":"摩羯座","unit_height":"cm","Era":"1990年代","name":"戴振","id":680,"unit_weight":"kg","ts_ms":1747019493924,"age":33,"height":"174"}
+        DataStreamSource<String> AppSource = env.fromSource(FlinkSourceUtil.getKafkaSource(Constant.Topic_dwd_App, Constant.Topic_dwd_App),
+                // 设置水位线
                 WatermarkStrategy.<String>forBoundedOutOfOrderness(Duration.ofSeconds(3))
-                .withTimestampAssigner((event, timestamp) -> {
-                            if (event != null){
-                                try {
-                                    return JSONObject.parseObject(event).getLong("ts_ms");
-                                }catch (Exception e){
-                                    e.printStackTrace();
-                                    System.err.println("Failed to parse event as JSON or get ts_ms: " + event);
+                        .withTimestampAssigner((event, timestamp) -> {
+                                    if (event != null){
+                                        try {
+                                            return JSONObject.parseObject(event).getLong("ts_ms");
+                                        }catch (Exception e){
+                                            e.printStackTrace();
+                                            System.err.println("Failed to parse event as JSON or get ts_ms: " + event);
+                                            return 0L;
+                                        }
+                                    }
                                     return 0L;
                                 }
-                            }
-                            return 0L;
-                        }
-                ), "kafka_source");
+                        ), "kafka_source");
+        // 转为JSON格式
+        SingleOutputStreamOperator<JSONObject> User = AppSource.map(JSONObject::parseObject);
+        //获取ods事实表数据
+        //DbSource:{"before":{"id":1,"tm_name":"Redmi2","logo_url":"111","create_time":1639440000000,"operate_time":null},"after":{"id":1,"tm_name":"Redmi","logo_url":"111","create_time":1639440000000,"operate_time":null},"source":{"version":"1.9.7.Final","connector":"mysql","name":"mysql_binlog_source","ts_ms":1747019648000,"snapshot":"false","db":"gmall2024","sequence":null,"table":"base_trademark","server_id":1,"gtid":null,"file":"mysql-bin.000033","pos":33631,"row":0,"thread":104,"query":null},"op":"u","ts_ms":1747019648229,"transaction":null}
+        DataStreamSource<String> DbSource = env.fromSource(FlinkSourceUtil.getKafkaSource("ods_db", "ods_db"),
+                // 设置水位线
+                WatermarkStrategy.<String>forBoundedOutOfOrderness(Duration.ofSeconds(3))
+                        .withTimestampAssigner((event, timestamp) -> {
+                                    if (event != null){
+                                        try {
+                                            return JSONObject.parseObject(event).getLong("ts_ms");
+                                        }catch (Exception e){
+                                            e.printStackTrace();
+                                            System.err.println("Failed to parse event as JSON or get ts_ms: " + event);
+                                            return 0L;
+                                        }
+                                    }
+                                    return 0L;
+                                }
+                        ), "kafka_source");
 
-        // TODO 2.过滤出 User_info 表
-        //{"before":null,"after":{"id":966,"login_name":"i50g1js64rl","nick_name":"真真","passwd":null,"name":"于真","phone_num":"13962311288","email":"i50g1js64rl@126.com","head_img":null,"user_level":"1","birthday":2838,"gender":null,"create_time":1746821342000,"operate_time":null,"status":null},"source":{"version":"1.9.7.Final","connector":"mysql","name":"mysql_binlog_source","ts_ms":0,"snapshot":"false","db":"gmall2024","sequence":null,"table":"user_info","server_id":0,"gtid":null,"file":"","pos":0,"row":0,"thread":null,"query":null},"op":"r","ts_ms":1747019493933,"transaction":null}
-        SingleOutputStreamOperator<JSONObject> filter = kafkaSource.filter(data -> {
+        //获取ods日志数据
+        //{"common":{"ar":"230000","ba":"Xiaomi","ch":"xiaomi","is_new":"1","md":"Xiaomi 9","mid":"mid_482509","os":"Android 10.0","uid":"443","vc":"v2.1.134"},"page":{"during_time":12740,"last_page_id":"mine","page_id":"orders_unpaid"},"ts":1747031731000}
+        DataStreamSource<String> LogSource = env.fromSource(FlinkSourceUtil.getKafkaSource("ods_log", "ods_log"),
+                // 设置水位线
+                WatermarkStrategy.<String>forBoundedOutOfOrderness(Duration.ofSeconds(3))
+                        .withTimestampAssigner((event, timestamp) -> {
+                                    if (event != null){
+                                        try {
+                                            return JSONObject.parseObject(event).getLong("ts");
+                                        }catch (Exception e){
+                                            e.printStackTrace();
+                                            System.err.println("Failed to parse event as JSON or get ts: " + event);
+                                            return 0L;
+                                        }
+                                    }
+                                    return 0L;
+                                }
+                        ), "kafka_source");
+
+        //TODO 2.过滤出 order_info,order_detail 表  日志表：搜索词,设备信息
+        //过滤搜索词 和设备信息
+        //{"uid":"128","os":"Android","keyword":"新款","ts":1747031730000}
+        SingleOutputStreamOperator<JSONObject> pageLog = LogSource.map(JSONObject::parseObject).map(new LogFilterFun())
+                .uid("filter page log").name("filter page log");
+
+        // 去重
+        // {"uid":"247","os":"iOS","keyword":"书籍","ts":1747031731000}
+        SingleOutputStreamOperator<JSONObject> BloomLog = pageLog.keyBy(o -> o.getString("uid"))
+                .filter(new PublicFilterBloomFunc(1000000, 0.0001, "uid", "ts"));
+//        BloomLog.print("Log布隆-->");
+
+        // 过滤出 order_info 表
+        SingleOutputStreamOperator<JSONObject> OrderInfo = DbSource.filter(data -> {
                     JSONObject object = JSONObject.parseObject(data);
-                    boolean b = object.getJSONObject("source").getString("table").equals("user_info");
-                    return b;
-                }).map(o -> JSONObject.parseObject(o))
-                .uid("filter_user_info").name("filter_user_info");
+                    return object.getJSONObject("source").getString("table").equals("order_info");
+                }).map(JSONObject::parseObject)
+                .uid("filter_order_info").name("filter_order_info");
 
         // 去重数据
-        // {"op":"r","after":{"birthday":7380,"gender":"M","create_time":1744902208000,"login_name":"s40eoj","nick_name":"锦黛","name":"陈善厚","user_level":"1","phone_num":"13699938755","id":510,"email":"s40eoj@hotmail.com","operate_time":1746662400000},"source":{"server_id":0,"version":"1.9.7.Final","file":"","connector":"mysql","pos":0,"name":"mysql_binlog_source","row":0,"ts_ms":0,"snapshot":"false","db":"gmall2024","table":"user_info"},"ts_ms":1747019493918}
-        SingleOutputStreamOperator<JSONObject> bloomFilterDs = filter.keyBy(o -> o.getJSONObject("after").getInteger("id"))
-                .filter(new FilterBloomDeduplicatorFunc(1000000, 0.0001))
-                .uid("FilterBloom").name("FilterBloom");
-//        bloomFilterDs.print("布隆");
+        //info-->: {"op":"r","after":{"payment_way":"3501","refundable_time":1747386484000,"original_total_amount":8197.0,"order_status":"1003","consignee_tel":"13754128222","trade_body":"Apple iPhone 12 (A2404) 64GB 白色 支持移动联通电信5G 双卡双待手机等1件商品","id":3555,"operate_time":1746781692000,"consignee":"萧予","create_time":1746781684000,"expire_time":1746782284000,"coupon_reduce_amount":0.0,"out_trade_no":"315795359827319","total_amount":8197.0,"user_id":865,"province_id":8,"activity_reduce_amount":0.0},"source":{"server_id":0,"version":"1.9.7.Final","file":"","connector":"mysql","pos":0,"name":"mysql_binlog_source","row":0,"ts_ms":0,"snapshot":"false","db":"gmall2024","table":"order_info"},"ts_ms":1747019484283}
+        SingleOutputStreamOperator<JSONObject> BloomInfo = OrderInfo.keyBy(o -> o.getJSONObject("after").getInteger("id"))
+                .filter(new PublicFilterBloomFunc(1000000, 0.0001, "id", "ts_ms"))
+                .uid("Filter info Bloom").name("Filter info Bloom");
+//        BloomInfo.print("info-->");
 
-        // 将生日转换成日期格式
-        // {"op":"r","after":{"birthday":"1990-03-17","gender":"M","create_time":1744902208000,"login_name":"s40eoj","nick_name":"锦黛","name":"陈善厚","user_level":"1","phone_num":"13699938755","id":510,"email":"s40eoj@hotmail.com","operate_time":1746662400000},"source":{"server_id":0,"version":"1.9.7.Final","file":"","connector":"mysql","pos":0,"name":"mysql_binlog_source","row":0,"ts_ms":0,"snapshot":"false","db":"gmall2024","table":"user_info"},"ts_ms":1747019493918}
-        SingleOutputStreamOperator<JSONObject> UserInfo = bloomFilterDs.map(o -> {
-            JSONObject after = o.getJSONObject("after");
-            if (after != null && after.containsKey("birthday")) {
-                Integer birthday = after.getInteger("birthday");
-                if (birthday != null) {
-                    LocalDate date = LocalDate.ofEpochDay(birthday);
-                    after.put("birthday", date.format(DateTimeFormatter.ISO_DATE));
-                }
-            }
-            return o;
-        }).uid("convert_birthday").name("convert_birthday");
+        // 过滤出 order_detail 表
+        SingleOutputStreamOperator<JSONObject> OrderDetail = DbSource.filter(data -> {
+                    JSONObject object = JSONObject.parseObject(data);
+                    return object.getJSONObject("source").getString("table").equals("order_detail");
+                }).map(JSONObject::parseObject)
+                .uid("filter_order_detail").name("filter_order_detail");
 
-        // TODO 3.提取字段
-        //AgeDS: {"birthday":"1984-04-18","create_time":1744990166000,"gender":"F","constellation":"白羊座","Era":"1980年代","name":"卫萍","id":565,"ageGroup":"40-49","ts_ms":1747019493920,"age":41}
-        SingleOutputStreamOperator<JSONObject> AgeDS = UserInfo.map(new RichMapFunction<JSONObject, JSONObject>() {
-            @Override
-            public JSONObject map(JSONObject jsonObject) throws Exception {
-                JSONObject object = new JSONObject();
+        // 去重数据
+        //detail-->:{"op":"r","after":{"sku_num":1,"create_time":1746801886000,"split_coupon_amount":30.0,"sku_id":26,"sku_name":"索芙特i-Softto 口红不掉色唇膏保湿滋润 璀璨金钻哑光唇膏 Y01复古红 百搭气质 璀璨金钻哑光唇膏 ","order_price":129.0,"id":5062,"order_id":3602,"split_activity_amount":0.0,"split_total_amount":99.0},"source":{"server_id":0,"version":"1.9.7.Final","file":"","connector":"mysql","pos":0,"name":"mysql_binlog_source","row":0,"ts_ms":0,"snapshot":"false","db":"gmall2024","table":"order_detail"},"ts_ms":1747019482665}
+        SingleOutputStreamOperator<JSONObject> BloomDetail = OrderDetail.keyBy(o -> o.getJSONObject("after").getInteger("id"))
+                .filter(new PublicFilterBloomFunc(1000000, 0.0001, "id", "ts_ms"))
+                .uid("Filter detail Bloom").name("Filter detail Bloom");
+//        BloomDetail.print("detail-->");
 
-                if (jsonObject.getJSONObject("after") != null && jsonObject != null) {
-                    Long tsMs = jsonObject.getLong("ts_ms");
-                    Integer id = jsonObject.getJSONObject("after").getInteger("id");
-                    String birthday = jsonObject.getJSONObject("after").getString("birthday");
-                    String gender = jsonObject.getJSONObject("after").getString("gender");
-                    String name = jsonObject.getJSONObject("after").getString("name");
-                    Long create_time = jsonObject.getJSONObject("after").getLong("create_time");
 
-                    object.put("id", id);
-                    object.put("ts_ms", tsMs);
-                    object.put("name", name);
-                    object.put("create_time", create_time);
-                    object.put("birthday", birthday);
+        // detail(create_time) -> info(total_amount)&sku --> user&(base_category3,base_trademark(tm_name)) --> log(os,keyword)&base_category2 --> base_category1(name)
 
-                    //性别
-                    if (gender != null){
-                        object.put("gender", gender);
-                    }else {
-                        object.put("gender", "home");
-                    }
+        //TODO 3.关联
 
-                    //年龄
-                    int age = BirthdayAgeFun.calculateAge(birthday);
-                    object.put("age", age);
-
-                    // 年龄段
-                    object.put("ageGroup", JudgmentFun.ageJudgment(age));
-
-                    //年代
-                    object.put("Era", JudgmentFun.EraJudgment(birthday));
-
-                    //星座
-                    object.put("constellation", JudgmentFun.ConstellationJudgment(birthday));
-
-                }
-                return object;
-            }
-        });
-        AgeDS.print("AgeDS");
-
-        //TODO 4.过滤 身高体重表
-        //{"op":"r","after":{"uid":245,"flag":"change","unit_height":"cm","create_ts":1747043547000,"weight":"50","id":245,"unit_weight":"kg","height":"179"},"source":{"server_id":0,"version":"1.9.7.Final","file":"","connector":"mysql","pos":0,"name":"mysql_binlog_source","row":0,"ts_ms":0,"snapshot":"false","db":"gmall2024","table":"user_info_sup_msg"},"ts_ms":1747019494539}
-        SingleOutputStreamOperator<JSONObject> filter1 = kafkaSource.filter(data -> {
-            JSONObject object = JSONObject.parseObject(data);
-            boolean b = object.getJSONObject("source").getString("table").equals("user_info_sup_msg");
-            return b;
-        }).map(o -> JSONObject.parseObject(o))
-                .uid("filter_user_info_sup_msg").name("filter_user_info_sup_msg");
-        filter1.print();
-        //TODO 5.关联身高体重
-        AgeDS
-                .keyBy(o->o.getInteger("id"))
-                        .intervalJoin(filter1.keyBy(o->o.getJSONObject("after").getInteger("id")))
-                .between(Time.minutes(-60),Time.minutes(60))
+        // detail & info
+        //4> {"create_time":1746809812000,"user_id":892,"total_amount":8197.0,"sku_id":8,"id":5078,"order_id":3615}
+        SingleOutputStreamOperator<JSONObject> intervalDetailInfo = BloomDetail
+                .keyBy(o -> o.getJSONObject("after").getInteger("order_id"))
+                .intervalJoin(BloomInfo.keyBy(o -> o.getJSONObject("after").getInteger("id")))
+                .between(Time.seconds(-60), Time.seconds(60))
                 .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
                     @Override
                     public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                        JSONObject object = new JSONObject();
+                        // detail 所需表字段
+                        object.put("id", jsonObject.getJSONObject("after").getInteger("id"));
+                        object.put("sku_id", jsonObject.getJSONObject("after").getInteger("sku_id"));
+                        object.put("order_id", jsonObject.getJSONObject("after").getInteger("order_id"));
+                        object.put("create_time", jsonObject.getJSONObject("after").getLong("create_time"));
+
+                        // info 所需表字段
+                        object.put("user_id", jsonObject2.getJSONObject("after").getInteger("user_id"));
+                        object.put("total_amount", jsonObject2.getJSONObject("after").getDouble("total_amount"));
+                        collector.collect(object);
+                    }
+                }).setParallelism(1).uid("intervalJoin detail & info").name("intervalJoin detail & info");
+
+        //去重
+        //{"create_time":1746828708000,"user_id":551,"total_amount":9787.0,"sku_id":31,"id":5196,"order_id":3702}
+        SingleOutputStreamOperator<JSONObject> BloomIntervalDetailInfo = intervalDetailInfo.keyBy(o -> o.getInteger("id"))
+                .filter(new PublicFilterBloomFunc(1000000, 0.0001, "id", "create_time"));
+
+        // new & sku 异步IO
+        //joinNewSku-->:{"create_time":1746775813000,"tm_id":8,"user_id":222,"total_amount":99.0,"sku_id":28,"sku_name":"索芙特i-Softto 口红不掉色唇膏保湿滋润 璀璨金钻哑光唇膏 Z03女王红 性感冷艳 璀璨金钻哑光唇膏 ","id":4969,"order_id":3537,"category3_id":477}
+        SingleOutputStreamOperator<JSONObject> joinNewSku = BloomIntervalDetailInfo.map(new RichMapFunction<JSONObject, JSONObject>() {
+            private Connection HBaseConn;
+
+            @Override
+            public void open(Configuration parameters) throws Exception {
+                HBaseConn = HBaseUtil.getHBaseConnection();
+            }
+
+            @Override
+            public void close() throws Exception {
+                HBaseUtil.closeHBaseConnection(HBaseConn);
+            }
+
+            @Override
+            public JSONObject map(JSONObject jsonObject) throws Exception {
+                // 获取skuId
+                Integer skuId = jsonObject.getInteger("sku_id");
+                // 获取对应 skuId 对应的 HBase 数据
+                JSONObject row = HBaseUtil.getRow(HBaseConn, Constant.HBASE_NAMESPACE, "dim_sku_info", skuId.toString(), JSONObject.class);
+                if (row != null) {
+                    jsonObject.put("sku_name", row.getString("sku_name"));
+                    jsonObject.put("category3_id", row.getInteger("category3_id"));
+                    jsonObject.put("tm_id", row.getInteger("tm_id"));
+                }
+
+                return jsonObject;
+            }
+        }).setParallelism(1).uid("join new & sku").name("join new & sku");
+//        joinNewSku.print("joinNewSku-->");
+
+        // new & user
+        //user-->: {"user":{"birthday":"1996-05-08","create_time":1654646400000,"gender":"M","weight":"53","ageGroup":"25-29","constellation":"金牛座","unit_height":"cm","Era":"1990年代","name":"欧阳茂进","id":13,"unit_weight":"kg","ts_ms":1747019493901,"age":29,"height":"151"},"Age":{"create_time":1746787559000,"tm_id":7,"user_id":13,"total_amount":18509.0,"sku_id":24,"sku_name":"金沙河面条 原味银丝挂面 龙须面 方便速食拉面 清汤面 900g","id":5019,"order_id":3576,"category3_id":803}}
+        SingleOutputStreamOperator<JSONObject> joinNewUser = joinNewSku.keyBy(o -> o.getInteger("user_id"))
+                .intervalJoin(User.keyBy(o -> o.getInteger("id")))
+                .between(Time.seconds(-60), Time.seconds(60))
+                .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
+
+                    @Override
+                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                        JSONObject object = new JSONObject();
+                        object.put("Age",jsonObject);
+                        object.put("user", jsonObject2);
+                        collector.collect(object);
+                    }
+                }).setParallelism(1).uid("intervalJoin new & user").name("intervalJoin new & user");
+//        joinNewUser.print("joinNewUser-->");
+
+        // 关联base_trademark(tm_name) & base_category3(c2_id)
+        // {"user":{"birthday":"1993-07-07","create_time":1744054226000,"gender":"M","weight":"58","ageGroup":"30-34","constellation":"巨蟹座","unit_height":"cm","Era":"1990年代","name":"郑彪博","id":122,"unit_weight":"kg","ts_ms":1747019493904,"age":30,"height":"158"},"Age":{"category_name":"手机","create_time":1746826754000,"sku_id":6,"tm_name":"Redmi","category1_id":2,"tm_id":1,"user_id":122,"total_amount":1299.0,"sku_name":"Redmi 10X 4G Helio G85游戏芯 4800万超清四摄 5020mAh大电量 小孔全面屏 128GB大存储 8GB+128GB 冰雾白 游戏智能手机 小米 红米","id":5152,"order_id":3669,"category3_id":61,"category2_id":13}}
+        SingleOutputStreamOperator<JSONObject> joinNewTradeCate = joinNewUser.map(new RichMapFunction<JSONObject, JSONObject>() {
+            private Connection HBaseConn;
+
+            @Override
+            public void open(Configuration parameters) throws Exception {
+                HBaseConn = HBaseUtil.getHBaseConnection();
+            }
+
+            @Override
+            public void close() throws Exception {
+                HBaseUtil.closeHBaseConnection(HBaseConn);
+            }
+
+            @Override
+            public JSONObject map(JSONObject jsonObject) throws Exception {
+                // 获取 c3Id
+                JSONObject age = jsonObject.getJSONObject("Age");
+                Integer category3_id = age.getInteger("category3_id");
+                // 获取对应 c3Id 对应的 HBase 数据
+                JSONObject row1 = HBaseUtil.getRow(HBaseConn, Constant.HBASE_NAMESPACE, "dim_base_category3", category3_id.toString(), JSONObject.class);
+                if (row1 != null) {
+                    age.put("category2_id", row1.getInteger("category2_id"));
+                }
+
+                // 获取 tmId
+                Integer tmId = age.getInteger("tm_id");
+                // 获取对应 c3Id 对应的 HBase 数据
+                JSONObject row2 = HBaseUtil.getRow(HBaseConn, Constant.HBASE_NAMESPACE, "dim_base_trademark", tmId.toString(), JSONObject.class);
+                if (row2 != null) {
+                    age.put("tm_name", row2.getString("tm_name"));
+                }
+
+                // 获取 c2Id
+                Integer category2_id = age.getInteger("category2_id");
+                // 获取对应 c2Id 对应的 HBase 数据
+                JSONObject row3 = HBaseUtil.getRow(HBaseConn, Constant.HBASE_NAMESPACE, "dim_base_category2", category2_id.toString(), JSONObject.class);
+                if (row3 != null) {
+                    age.put("category1_id", row3.getInteger("category1_id"));
+                }
+
+                // 获取 c1Id
+                Integer category1_id = age.getInteger("category1_id");
+                // 获取对应 c2Id 对应的 HBase 数据
+                JSONObject row4 = HBaseUtil.getRow(HBaseConn, Constant.HBASE_NAMESPACE, "dim_base_category1", category1_id.toString(), JSONObject.class);
+                if (row4 != null) {
+                    age.put("category_name", row4.getString("name"));
+                }
+
+                return jsonObject;
+            }
+        }).setParallelism(1).uid("join new & trademark & category ").name("join new & trademark & category ");
+//        joinNewTradeCate.print("joinNewTradeCate-->");
+
+        // 关联日志表
+        // {"user":{"birthday":"1996-06-17","create_time":1744902204000,"gender":"M","weight":"50","ageGroup":"25-29","constellation":"双子座","unit_height":"cm","Era":"1990年代","name":"茅飞彬","id":486,"unit_weight":"kg","ts_ms":1747019493918,"age":27,"height":"180"},"Age":{"category_name":"手机","create_time":1746805771000,"sku_id":3,"tm_name":"小米","category1_id":2,"tm_id":5,"user_id":486,"total_amount":5999.0,"sku_name":"小米12S Ultra 骁龙8+旗舰处理器 徕卡光学镜头 2K超视感屏 120Hz高刷 67W快充 12GB+256GB 经典黑 5G手机","id":5067,"order_id":3606,"category3_id":61,"category2_id":13}}
+        SingleOutputStreamOperator<JSONObject> joinAll = joinNewTradeCate.keyBy(o -> o.getJSONObject("Age").getInteger("user_id"))
+                .intervalJoin(BloomLog.keyBy(o -> o.getInteger("uid")))
+                .between(Time.hours(-60), Time.hours(60))
+                .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
+                    @Override
+                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                        JSONObject age = jsonObject.getJSONObject("Age");
+                        age.put("os", age.getString("os"));
+                        age.put("keyword", age.getString("keyword"));
+                        age.put("ts", age.getLong("ts"));
+                        collector.collect(jsonObject);
 
                     }
-                })
-                .uid("intervalJoin")
-                .name("intervalJoin");
-
-
-
-
-
-
-
-
+                }).setParallelism(1).uid("intervalJoin new & bloomLog").name("intervalJoin new & bloomLog");
+        joinAll.print("joinAll-->");
 
         env.execute("DwdAge");
     }

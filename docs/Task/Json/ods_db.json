@@ -1,0 +1,36 @@
+{
+  "before": {
+    "id": 1,
+    "tm_name": "Redmi2",
+    "logo_url": "111",
+    "create_time": 1639440000000,
+    "operate_time": null
+  },
+  "after": {
+    "id": 1,
+    "tm_name": "Redmi",
+    "logo_url": "111",
+    "create_time": 1639440000000,
+    "operate_time": null
+  },
+  "source": {
+    "version": "1.9.7.Final",
+    "connector": "mysql",
+    "name": "mysql_binlog_source",
+    "ts_ms": 1747019648000,
+    "snapshot": "false",
+    "db": "gmall2024",
+    "sequence": null,
+    "table": "base_trademark",
+    "server_id": 1,
+    "gtid": null,
+    "file": "mysql-bin.000033",
+    "pos": 33631,
+    "row": 0,
+    "thread": 104,
+    "query": null
+  },
+  "op": "u",
+  "ts_ms": 1747019648229,
+  "transaction": null
+}

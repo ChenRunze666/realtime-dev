@@ -64,7 +64,7 @@ public class FilterBloomDeduplicatorFunc extends RichFilterFunction<JSONObject> 
             // 可选：记录日志或者直接过滤掉
             return false; // 过滤掉 null 数据
         }
-        long unique = value.getJSONObject("after").getLong("id");
+        long unique = value.getJSONObject("after").getInteger("id");
         long tsMs = value.getLong("ts_ms");
         String compositeKey = unique + "_" + tsMs;
 

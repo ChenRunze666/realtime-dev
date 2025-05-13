@@ -1,0 +1,33 @@
+{
+  "user": {
+    "birthday": "1996-06-17",
+    "create_time": 1744902204000,
+    "gender": "M",
+    "weight": "50",
+    "ageGroup": "25-29",
+    "constellation": "双子座",
+    "unit_height": "cm",
+    "Era": "1990年代",
+    "name": "茅飞彬",
+    "id": 486,
+    "unit_weight": "kg",
+    "ts_ms": 1747019493918,
+    "age": 27,
+    "height": "180"
+  },
+  "Age": {
+    "category_name": "手机",
+    "create_time": 1746805771000,
+    "sku_id": 3,
+    "tm_name": "小米",
+    "category1_id": 2,
+    "tm_id": 5,
+    "user_id": 486,
+    "total_amount": 5999.0,
+    "sku_name": "小米12S Ultra 骁龙8+旗舰处理器 徕卡光学镜头 2K超视感屏 120Hz高刷 67W快充 12GB+256GB 经典黑 5G手机",
+    "id": 5067,
+    "order_id": 3606,
+    "category3_id": 61,
+    "category2_id": 13
+  }
+}
