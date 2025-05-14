@@ -37,7 +37,7 @@ public class Flink_CDC {
                 .password("root")
                 .debeziumProperties(prop)
                 // 启动选项，从最新位点开始捕获数据
-                .startupOptions(StartupOptions.initial()) // 从最早位点启动
+                .startupOptions(StartupOptions.latest()) // 从最早位点启动
                 .deserializer(new JsonDebeziumDeserializationSchema()) // 将 SourceRecord 转换为 JSON 字符串
                 .build();
 

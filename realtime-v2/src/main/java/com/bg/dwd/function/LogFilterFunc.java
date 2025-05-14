@@ -1,7 +1,6 @@
 package com.bg.dwd.function;
 
 import com.alibaba.fastjson.JSONObject;
-import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 
 /**
@@ -10,7 +9,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
  * @Date 2025/5/13 14:28
  * @description: page Log 数据过滤处理
  */
-public class LogFilterFun extends RichMapFunction<JSONObject,JSONObject>{
+public class LogFilterFunc extends RichMapFunction<JSONObject,JSONObject>{
 
     @Override
     public JSONObject map(JSONObject jsonObject) throws Exception {

@@ -68,9 +68,9 @@ public class PublicFilterBloomFunc extends RichFilterFunction<JSONObject> {
             // 可选：记录日志或者直接过滤掉
             return false; // 过滤掉 null 数据
         }
+        long tsMs = value.getLong(sortKey2);
         if (value.getJSONObject("after" ) != null){
             String unique = value.getJSONObject("after").getString(sortKey1);
-            long tsMs = value.getLong(sortKey2);
             String compositeKey = unique + "_" + tsMs;
 
             // 读取布隆过滤器状态
@@ -118,10 +118,9 @@ public class PublicFilterBloomFunc extends RichFilterFunction<JSONObject> {
             logger.warn("check duplicate data : {}", value);
             return false;
 
-        }else { //如果不是嵌套 after 层 则直接获取
-
+        }else {
+            //如果不是嵌套 after 层 则直接获取
             String unique = value.getString(sortKey1);
-            long tsMs = value.getLong(sortKey2);
             String compositeKey = unique + "_" + tsMs;
 
             // 读取布隆过滤器状态

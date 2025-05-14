@@ -1,6 +1,9 @@
 package com.bg.dwd.function;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -9,7 +12,7 @@ import java.time.format.DateTimeFormatter;
  * @Date 2025/5/12 21:05
  * @description: 年龄段，年代，星座 判断函数
  */
-public class JudgmentFun {
+public class JudgmentFunc {
     public static String ageJudgment(Integer age) {
         if (age != null && age >= 18 && age <= 24) {
             return "18-24";
@@ -77,4 +80,52 @@ public class JudgmentFun {
                 throw new IllegalArgumentException("无效月份");
         }
     }
+
+    /**
+     * 根据时间戳判断时间段分类
+     * @param timestamp 毫秒时间戳
+     * @return 时间段名称（中文）
+     */
+    public static String timePeriodJudgment(long timestamp) {
+        if (timestamp < 0) {
+            throw new IllegalArgumentException("无效时间戳");
+        }
+        LocalDateTime dateTime = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(timestamp),
+                ZoneId.of("Asia/Shanghai")
+        );
+
+        int hour = dateTime.getHour();
+
+        if (hour >= 0 && hour < 6) return "凌晨";
+        if (hour < 9) return "早晨";
+        if (hour < 12) return "上午";
+        if (hour < 14) return "中午";
+        if (hour < 18) return "下午";
+        if (hour < 22) return "晚上";
+        return "夜间";
+    }
+
+    /**
+     * 根据商品金额进行分类判断
+     * @param totalAmount 商品金额（支持小数）
+     * @return 价格分类标签
+     */
+    public static String priceCategoryJudgment(double totalAmount) {
+        if (totalAmount < 0) {
+            throw new IllegalArgumentException("金额不能为负数: " + totalAmount);
+        }
+        // 边界值精确处理
+        if (totalAmount < 1000) {
+            return "低价商品";
+        } else if (totalAmount >= 1000 && totalAmount <= 4000) {
+            return "中价商品";
+        } else if (totalAmount > 4000) {
+            return "高价商品";
+        }
+        return "无效金额";
+    }
+
+
+
 }

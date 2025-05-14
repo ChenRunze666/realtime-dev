@@ -1,5 +1,6 @@
 package com.bg.dwd.function;
 
+import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -11,20 +12,18 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class test {
     public static void main(String[] args) throws Exception {
-        String jsonStr = "{\"name\": \"Alice\", \"age\": 25}";
+        JSONObject object = new JSONObject();
+        object.put("name","zhangsan");
+        object.put("age",18);
+        JSONObject object1 = new JSONObject();
+        object1.put("name1","lisi");
+        object1.put("age1",19);
+        JSONObject object2 = new JSONObject();
 
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode rootNode = mapper.readTree(jsonStr);
+        object2.put("啊",object);
+        object2.put("饿",object1);
+        System.out.println(object2);
 
-        // 转换为可修改的 ObjectNode
-        if (rootNode instanceof ObjectNode) {
-            ObjectNode objectNode = (ObjectNode) rootNode;
-            // 更新字段值
-            objectNode.put("age", 26);  // 直接覆盖原值
 
-            // 转换为字符串输出
-            String updatedJson = mapper.writeValueAsString(objectNode);
-            System.out.println(updatedJson);
-        }
     }
 }

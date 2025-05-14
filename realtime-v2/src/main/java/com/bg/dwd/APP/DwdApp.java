@@ -1,13 +1,14 @@
 package com.bg.dwd.APP;
 
+import com.alibaba.fastjson.JSONAware;
 import com.alibaba.fastjson.JSONObject;
 import com.bg.common.constant.Constant;
 import com.bg.common.util.EnvironmentSettingUtils;
 import com.bg.common.util.FlinkSinkUtil;
 import com.bg.common.util.FlinkSourceUtil;
 import com.bg.dwd.function.FilterBloomDeduplicatorFunc;
-import com.bg.dwd.function.BirthdayAgeFun;
-import com.bg.dwd.function.JudgmentFun;
+import com.bg.dwd.function.BirthdayAgeFunc;
+import com.bg.dwd.function.JudgmentFunc;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -51,13 +52,10 @@ public class DwdApp {
                             return 0L;
                         }
                 ), "kafka_source");
-
+        SingleOutputStreamOperator<JSONObject> filterOp = kafkaSource.map(JSONObject::parseObject).filter(o -> !o.getString("op").equals("d"));
         // TODO 2.过滤出 User_info 表
         //{"before":null,"after":{"id":966,"login_name":"i50g1js64rl","nick_name":"真真","passwd":null,"name":"于真","phone_num":"13962311288","email":"i50g1js64rl@126.com","head_img":null,"user_level":"1","birthday":2838,"gender":null,"create_time":1746821342000,"operate_time":null,"status":null},"source":{"version":"1.9.7.Final","connector":"mysql","name":"mysql_binlog_source","ts_ms":0,"snapshot":"false","db":"gmall2024","sequence":null,"table":"user_info","server_id":0,"gtid":null,"file":"","pos":0,"row":0,"thread":null,"query":null},"op":"r","ts_ms":1747019493933,"transaction":null}
-        SingleOutputStreamOperator<JSONObject> filter = kafkaSource.filter(data -> {
-                    JSONObject object = JSONObject.parseObject(data);
-                    return object.getJSONObject("source").getString("table").equals("user_info");
-                }).map(JSONObject::parseObject)
+        SingleOutputStreamOperator<JSONObject> filter = filterOp.filter(data -> data.getJSONObject("source").getString("table").equals("user_info"))
                 .uid("filter_user_info").name("filter_user_info");
 
         // 去重数据
@@ -94,12 +92,10 @@ public class DwdApp {
                     String birthday = jsonObject.getJSONObject("after").getString("birthday");
                     String gender = jsonObject.getJSONObject("after").getString("gender");
                     String name = jsonObject.getJSONObject("after").getString("name");
-                    Long create_time = jsonObject.getJSONObject("after").getLong("create_time");
 
                     object.put("id", id);
                     object.put("ts_ms", tsMs);
                     object.put("name", name);
-                    object.put("create_time", create_time);
                     object.put("birthday", birthday);
 
                     //性别
@@ -110,17 +106,17 @@ public class DwdApp {
                     }
 
                     //年龄
-                    int age = BirthdayAgeFun.calculateAge(birthday);
+                    int age = BirthdayAgeFunc.calculateAge(birthday);
                     object.put("age", age);
 
                     // 年龄段
-                    object.put("ageGroup", JudgmentFun.ageJudgment(age));
+                    object.put("ageGroup", JudgmentFunc.ageJudgment(age));
 
                     //年代
-                    object.put("Era", JudgmentFun.EraJudgment(birthday));
+                    object.put("Era", JudgmentFunc.EraJudgment(birthday));
 
                     //星座
-                    object.put("constellation", JudgmentFun.ConstellationJudgment(birthday));
+                    object.put("constellation", JudgmentFunc.ConstellationJudgment(birthday));
 
                 }
                 return object;
@@ -130,17 +126,14 @@ public class DwdApp {
 
         //TODO 4.过滤 身高体重表
         //{"op":"r","after":{"uid":245,"flag":"change","unit_height":"cm","create_ts":1747043547000,"weight":"50","id":245,"unit_weight":"kg","height":"179"},"source":{"server_id":0,"version":"1.9.7.Final","file":"","connector":"mysql","pos":0,"name":"mysql_binlog_source","row":0,"ts_ms":0,"snapshot":"false","db":"gmall2024","table":"user_info_sup_msg"},"ts_ms":1747019494539}
-        SingleOutputStreamOperator<JSONObject> filter1 = kafkaSource.filter(data -> {
-            JSONObject object = JSONObject.parseObject(data);
-                    return object.getJSONObject("source").getString("table").equals("user_info_sup_msg");
-        }).map(JSONObject::parseObject)
+        SingleOutputStreamOperator<JSONObject> weightHeightInfo = filterOp.filter(data -> data.getJSONObject("source").getString("table").equals("user_info_sup_msg"))
                 .uid("filter_user_info_sup_msg").name("filter_user_info_sup_msg");
 
         //TODO 5.关联身高体重
         //{"birthday":"1983-03-09","create_time":1746832594000,"gender":"home","weight":"55","ageGroup":"40-49","constellation":"双鱼座","unit_height":"cm","Era":"1980年代","name":"卫欣","id":982,"unit_weight":"kg","ts_ms":1747019493934,"age":42,"height":"184"}
         SingleOutputStreamOperator<JSONObject> IntervalDS = AgeDS
                 .keyBy(o -> o.getInteger("id"))
-                .intervalJoin(filter1.keyBy(o -> o.getJSONObject("after").getInteger("uid")))
+                .intervalJoin(weightHeightInfo.keyBy(o -> o.getJSONObject("after").getInteger("uid")))
                 .between(Time.minutes(-60), Time.minutes(60))
                 .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
                     @Override
@@ -162,8 +155,8 @@ public class DwdApp {
         IntervalDS.print();
 
         //TODO 6.写入Kafka
-//        IntervalDS.map(o->o.toJSONString())
-//                .sinkTo(FlinkSinkUtil.getKafkaSink(Constant.Topic_dwd_App));
+        IntervalDS.map(JSONAware::toJSONString)
+                .sinkTo(FlinkSinkUtil.getKafkaSink(Constant.Topic_dwd_App));
 
         env.execute("DwdApp");
     }

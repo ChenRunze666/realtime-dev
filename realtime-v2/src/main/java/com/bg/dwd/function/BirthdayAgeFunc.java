@@ -11,7 +11,7 @@ import java.time.format.DateTimeParseException;
  * @Date 2025/5/12 19:58
  * @description: 根据出生日期计算实际年龄
  */
-public class BirthdayAgeFun {
+public class BirthdayAgeFunc {
     public static int calculateAge(String birthDateStr) throws DateTimeParseException {
         // 1. 定义日期格式
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
