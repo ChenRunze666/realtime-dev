@@ -7,15 +7,13 @@ import com.bg.common.util.FlinkSourceUtil;
 import com.bg.common.util.HBaseUtil;
 import com.bg.dwd.function.*;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.hbase.client.Connection;
@@ -141,9 +139,11 @@ public class DwdAge {
 //        BloomDetail.print("detail-->");
 
         // 过滤出 category_compare_dic 表
-        SingleOutputStreamOperator<JSONObject> CategoryCompare = DbSource.filter(data -> data.getJSONObject("source").getString("table").equals("category_compare_dic") && data.getJSONObject("after") != null)
+        // {"op":"c","after":{"category_name":"保健品","search_category":"健康与养生","id":8},"source":{"thread":161,"server_id":1,"version":"1.9.7.Final","file":"mysql-bin.000036","connector":"mysql","pos":2310633,"name":"mysql_binlog_source","row":0,"ts_ms":1747222192000,"snapshot":"false","db":"gmall2024","table":"category_compare_dic"},"ts_ms":1747222191269}
+        SingleOutputStreamOperator<JSONObject> CategoryCompare = DbSource
+                .filter(data -> data.getJSONObject("source").getString("table").equals("category_compare_dic") && data.getJSONObject("after") != null)
                 .uid("filter_category_compare_dic").name("filter_category_compare_dic");
-
+//        CategoryCompare.print("CategoryCompare-->");
         //TODO 3.关联
 
         // detail & info
@@ -154,10 +154,10 @@ public class DwdAge {
                 .between(Time.seconds(-60), Time.seconds(60))
                 .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
                     @Override
-                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector)  {
                         JSONObject object = new JSONObject();
                         // detail 所需表字段
-                        object.put("id", jsonObject.getJSONObject("after").getInteger("id"));
+                        object.put("detail_id", jsonObject.getJSONObject("after").getInteger("id"));
                         object.put("sku_id", jsonObject.getJSONObject("after").getInteger("sku_id"));
                         object.put("order_id", jsonObject.getJSONObject("after").getInteger("order_id"));
                         object.put("create_time", jsonObject.getJSONObject("after").getLong("create_time"));
@@ -190,7 +190,7 @@ public class DwdAge {
             }
 
             @Override
-            public JSONObject map(JSONObject jsonObject) throws Exception {
+            public JSONObject map(JSONObject jsonObject)  {
                 // 获取skuId
                 Integer skuId = jsonObject.getInteger("sku_id");
                 // 获取对应 skuId 对应的 HBase 数据
@@ -213,7 +213,7 @@ public class DwdAge {
                 .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
 
                     @Override
-                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector)  {
                         JSONObject object = new JSONObject();
                         object.put("Age",jsonObject);
                         object.put("user", jsonObject2);
@@ -238,7 +238,7 @@ public class DwdAge {
             }
 
             @Override
-            public JSONObject map(JSONObject jsonObject) throws Exception {
+            public JSONObject map(JSONObject jsonObject)  {
                 // 获取 c3Id
                 JSONObject age = jsonObject.getJSONObject("Age");
                 Integer category3_id = age.getInteger("category3_id");
@@ -284,7 +284,7 @@ public class DwdAge {
                 .between(Time.minutes(-60), Time.minutes(60))
                 .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
                     @Override
-                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector)   {
                         try {
                             JSONObject age = jsonObject.getJSONObject("Age");
                             age.put("os", jsonObject2.getString("os"));
@@ -306,7 +306,7 @@ public class DwdAge {
         // {"user":{"birthday":"2007-01-09","create_time":1746790830000,"gender":"M","weight":"60","ageGroup":"18-24","constellation":"摩羯座","unit_height":"cm","Era":"2000年代","name":"东郭宁","id":955,"unit_weight":"kg","ts_ms":1747019493933,"age":18,"height":"183"},"Age":{"category_name":"个护化妆","create_time":1746790919000,"os":"Android","sku_id":30,"price_sensitive":"高价商品","tm_name":"CAREMiLLE","category1_id":8,"tm_id":9,"user_id":955,"total_amount":21667.2,"sku_name":"CAREMiLLE珂曼奶油小方口红 雾面滋润保湿持久丝缎唇膏 M02干玫瑰","id":5041,"order_id":3588,"category3_id":477,"category2_id":54,"time_period":"晚上","ts":1747031731000}}
         SingleOutputStreamOperator<JSONObject> timePriceMap = joinAll.map(new RichMapFunction<JSONObject, JSONObject>() {
             @Override
-            public JSONObject map(JSONObject jsonObject) throws Exception {
+            public JSONObject map(JSONObject jsonObject)   {
                 if (jsonObject.getJSONObject("Age") != null) {
                     JSONObject age = jsonObject.getJSONObject("Age");
 
@@ -328,10 +328,33 @@ public class DwdAge {
                 .between(Time.minutes(-60), Time.minutes(60))
                 .process(new ProcessJoinFunction<JSONObject, JSONObject, JSONObject>() {
                     @Override
-                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector) throws Exception {
+                    public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector)  {
+                        if (jsonObject == null || jsonObject2 == null) {
+                            return; // 或者记录日志
+                        }
+
                         JSONObject age = jsonObject.getJSONObject("Age");
-                        age.put("keyword_type",  jsonObject2.getJSONObject("after").getString("search_category"));
-                        collector.collect(jsonObject);
+                        if (age == null) {
+                            return;
+                        }
+
+                        JSONObject after = jsonObject2.getJSONObject("after");
+                        if (after == null || !after.containsKey("search_category")) {
+                            return;
+                        }
+
+                        String searchCategory = after.getString("search_category");
+                        if (searchCategory == null) {
+                            return;
+                        }
+
+                        try {
+                            age.put("keyword_type", searchCategory);
+                            collector.collect(jsonObject);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            System.out.println("报错信息 " + searchCategory);
+                        }
                     }
                 }).setParallelism(1).uid("intervalJoin new & searchCate").name("intervalJoin new & searchCate");
 
@@ -355,52 +378,62 @@ public class DwdAge {
 //        AgeEachScore.print("AgeEachScore-->");
 
         // 求和
-        // {"user":{"birthday":"1977-02-14","gender":"home","weight":"77","ageGroup":"40-49","constellation":"水瓶座","unit_height":"cm","Era":"1970年代","name":"伏聪澜","id":997,"unit_weight":"kg","ts_ms":1747221454365,"age":48,"height":"159"},"Age":{"category_name":"手机","create_time":1747226824000,"os":"iOS","sku_id":12,"price_sensitive":"高价商品","original_total_amount":9197.0,"keyword_type":"健康与养生","tm_name":"苹果","category1_id":2,"tm_id":2,"user_id":997,"id":5314,"keyword":"保健品","order_id":3782,"category3_id":61,"category2_id":13,"time_period":"晚上","ts":1747221566000},"ageScore":{"tm_score":0.04000000000000001,"price_sensitive_score":0.075,"time_period_score":0.04000000000000001,"category_score":0.27,"os_score":0.03,"TotalScore":0.0,"keyword_type_score":0.12}}
-        SingleOutputStreamOperator<JSONObject> TotalScore = AgeEachScore.map(new RichMapFunction<JSONObject, JSONObject>() {
-            @Override
-            public JSONObject map(JSONObject jsonObject) throws Exception {
-                if (jsonObject.getJSONObject("ageScore") != null) {
-                    JSONObject ageScore = jsonObject.getJSONObject("ageScore");
-                    JSONObject user = jsonObject.getJSONObject("user");
-                    // 精确小数位
-                    BigDecimal tmScore = new BigDecimal(ageScore.getInteger("tm_score"));
-                    BigDecimal timePeriodScore = new BigDecimal(ageScore.getInteger("time_period_score"));
-                    double tmValue = tmScore.setScale(3).doubleValue();
-                    double timePeriodValue = timePeriodScore.setScale(3).doubleValue();
-
-                    BigDecimal bigDecimal = new BigDecimal(tmValue +
-                            ageScore.getInteger("price_sensitive_score") +
-                            timePeriodValue +
-                            ageScore.getInteger("category_score") +
-                            ageScore.getInteger("os_score") +
-                            ageScore.getInteger("keyword_type_score"));
-                    bigDecimal = bigDecimal.setScale(3);
-                    double totalScore = bigDecimal.doubleValue();
-                    System.out.println(totalScore);
-                    ageScore.put("TotalScore", totalScore);
-
-                    if (totalScore >= 0.75){
-                        user.put("new_ageGroup", "18-24");
-                    } else if (totalScore >= 0.69) {
-                        user.put("new_ageGroup", "25-29");
-                    } else if (totalScore >= 0.585) {
-                        user.put("new_ageGroup", "30-34");
-                    } else if (totalScore >= 0.47) {
-                        user.put("new_ageGroup", "35-39");
-                    } else if (totalScore >= 0.365) {
-                        user.put("new_ageGroup", "40-49");
-                    } else if (totalScore >= 0.26) {
-                        user.put("new_ageGroup", "50+");
-                    }
-                }
-                return jsonObject;
-            }
-        });
+        //{"user":{"birthday":"2001-07-15","gender":"home","weight":"40","ageGroup":"18-24","constellation":"巨蟹座","unit_height":"cm","Era":"2000年代","name":"沈娣","id":221,"unit_weight":"kg","new_ageGroup":"40-49","ts_ms":1747222186982,"age":22,"height":"159"},"Age":{"category_name":"电脑办公","create_time":1747236324000,"os":"Android","sku_id":15,"price_sensitive":"高价商品","original_total_amount":9799.0,"keyword_type":"健康与养生","tm_name":"联想","category1_id":6,"tm_id":3,"user_id":221,"id":5581,"keyword":"健康食品","order_id":3970,"category3_id":287,"category2_id":33,"time_period":"夜间","ts":1747221577000},"ageScore":{"tm_score":0.18,"price_sensitive_score":0.015,"time_period_score":0.09,"category_score":0.06,"os_score":0.08,"TotalScore":0.440,"keyword_type_score":0.015}}
+        SingleOutputStreamOperator<JSONObject> TotalScore = AgeEachScore.map(new ScoreCalculator());
 
         TotalScore.print();
 
 
 
         env.execute("DwdAge");
+    }
+
+
+
+
+    // 计算加权求和
+    public static class ScoreCalculator implements MapFunction<JSONObject, JSONObject> {
+        @Override
+        public JSONObject map(JSONObject value)   {
+            JSONObject ageScore = value.getJSONObject("ageScore");
+            JSONObject user = value.getJSONObject("user");
+            if (ageScore == null) return value;
+
+
+            // 使用BigDecimal保证精度
+            BigDecimal total = BigDecimal.ZERO;
+            for (String key : ageScore.keySet()) {
+                if ("TotalScore".equals(key)) continue;
+
+                Object val = ageScore.get(key);
+                if (val instanceof Number) {
+                    // 通过字符串转换避免精度丢失
+                    BigDecimal num = new BigDecimal(val.toString());
+                    total = total.add(num);
+                }
+            }
+
+            // 四舍五入保留3位小数
+            total = total.setScale(3, RoundingMode.HALF_UP);
+            double aDouble = total.doubleValue();
+
+            if (aDouble >= 0.75){
+                user.put("new_ageGroup", "18-24");
+            } else if (aDouble >= 0.69) {
+                user.put("new_ageGroup", "25-29");
+            } else if (aDouble >= 0.585) {
+                user.put("new_ageGroup", "30-34");
+            } else if (aDouble >= 0.47) {
+                user.put("new_ageGroup", "35-39");
+            } else if (aDouble >= 0.365) {
+                user.put("new_ageGroup", "40-49");
+            } else if (aDouble >= 0.26) {
+                user.put("new_ageGroup", "50+");
+            }
+
+            // 更新 TotalScore
+            ageScore.put("TotalScore", total);
+            return value;
+        }
     }
 }
