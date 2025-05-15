@@ -157,7 +157,7 @@ public class DwdAge {
                     public void processElement(JSONObject jsonObject, JSONObject jsonObject2, ProcessJoinFunction<JSONObject, JSONObject, JSONObject>.Context context, Collector<JSONObject> collector)  {
                         JSONObject object = new JSONObject();
                         // detail 所需表字段
-                        object.put("detail_id", jsonObject.getJSONObject("after").getInteger("id"));
+                        object.put("id", jsonObject.getJSONObject("after").getInteger("id"));
                         object.put("sku_id", jsonObject.getJSONObject("after").getInteger("sku_id"));
                         object.put("order_id", jsonObject.getJSONObject("after").getInteger("order_id"));
                         object.put("create_time", jsonObject.getJSONObject("after").getLong("create_time"));
