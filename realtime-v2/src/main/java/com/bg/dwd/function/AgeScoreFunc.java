@@ -28,18 +28,30 @@ public class AgeScoreFunc extends RichMapFunction<JSONObject,JSONObject> {
         //获取两条JSON对象
         JSONObject user = jsonObject.getJSONObject("user");
         JSONObject age = jsonObject.getJSONObject("Age");
-        // 创建一个新的JSON对象,用于手机Age分数
+        // 创建一个新的JSON对象,用于收集Age分数
         JSONObject ageScore = new JSONObject();
 
-        // 类目
-        Set<String> TrendCategoryValues = new HashSet<>(Arrays.asList("珠宝", "礼品箱包", "鞋靴", "服饰内衣", "个护化妆", "数码"));
-        Set<String> HomeCategoryValues = new HashSet<>(Arrays.asList("母婴", "钟表", "厨具", "电脑办公", "家居家装", "家用电器", "图书、音像、电子书刊", "手机", "汽车用品"));
+        // 类目   分成三类  每一类对应表中的一类   这个其实可以通过MySQL去关联,但是需要去添加新表和字段去关联   我没想那么麻烦, 我就直接写死了
+        Set<String> TrendCategoryValues = new HashSet<>(Arrays.asList("珠宝", "礼品箱包", "鞋靴", "服饰内衣", "个护化妆"));
+        Set<String> HomeCategoryValues = new HashSet<>(Arrays.asList("母婴", "钟表", "厨具", "电脑办公", "家居家装", "家用电器", "图书、音像、电子书刊", "手机", "汽车用品", "数码"));
         Set<String> HealthCategoryValues = new HashSet<>(Arrays.asList("运动健康", "食品饮料、保健食品"));
         String categoryName = age.getString("category_name");
-        //品牌
+        if (TrendCategoryValues.contains(categoryName)){
+            age.put("category_type","潮流服饰");
+        } else if (HomeCategoryValues.contains(categoryName)) {
+            age.put("category_type","家具用品");
+        } else if (HealthCategoryValues.contains(categoryName)) {
+            age.put("category_type","健康食品");
+        }
+        //品牌  分两类
         Set<String> EquipmentTmValues = new HashSet<>(Arrays.asList("Redmi", "苹果", "联想", "TCL", "小米"));
         Set<String> TrendTmValues = new HashSet<>(Arrays.asList("长粒香", "金沙河", "索芙特", "CAREMiLLE", "欧莱雅", "香奈儿"));
         String tmName = age.getString("tm_name");
+        if (EquipmentTmValues.contains(tmName)){
+            age.put("tm_type","设备类");
+        } else if (TrendTmValues.contains(tmName)){
+            age.put("tm_type","服饰类");
+        }
         //价格
         String priceSensitive = age.getString("price_sensitive");
         // 时间

@@ -37,7 +37,7 @@ import java.util.*;
 public class DimApp {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettingUtils.defaultParameter(env);
+        EnvironmentSettingUtils.defaultParameter(env,  "dim_app");
         env.setParallelism(4);
 
         // TODO 1.从Kafka 读取数据

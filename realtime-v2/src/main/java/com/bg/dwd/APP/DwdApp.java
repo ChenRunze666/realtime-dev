@@ -32,7 +32,7 @@ import java.time.format.DateTimeFormatter;
 public class DwdApp {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettingUtils.defaultParameter(env);
+        EnvironmentSettingUtils.defaultParameter(env,  "dwd_App");
 
         // TODO 1.从Kafka获取数据
         KafkaSource<String> source = FlinkSourceUtil.getKafkaSource("ods_db", "ods_db");

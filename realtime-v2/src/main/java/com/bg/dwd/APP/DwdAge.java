@@ -1,8 +1,10 @@
 package com.bg.dwd.APP;
 
+import com.alibaba.fastjson.JSONAware;
 import com.alibaba.fastjson.JSONObject;
 import com.bg.common.constant.Constant;
 import com.bg.common.util.EnvironmentSettingUtils;
+import com.bg.common.util.FlinkSinkUtil;
 import com.bg.common.util.FlinkSourceUtil;
 import com.bg.common.util.HBaseUtil;
 import com.bg.dwd.function.*;
@@ -31,7 +33,7 @@ import java.time.Duration;
 public class DwdAge {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettingUtils.defaultParameter(env);
+        EnvironmentSettingUtils.defaultParameter(env,  "Dwd_Age");
         env.setParallelism(1);
 
         //TODO 品类   订单 --> 明细&用户- -> sku --> 品牌 --> 三级品类 --> 二级品类 --> 一级品类 --> 日志
@@ -144,8 +146,9 @@ public class DwdAge {
                 .filter(data -> data.getJSONObject("source").getString("table").equals("category_compare_dic") && data.getJSONObject("after") != null)
                 .uid("filter_category_compare_dic").name("filter_category_compare_dic");
 //        CategoryCompare.print("CategoryCompare-->");
-        //TODO 3.关联
 
+
+        // TODO 3.关联
         // detail & info
         //4> {"create_time":1746809812000,"user_id":892,"total_amount":8197.0,"sku_id":8,"id":5078,"order_id":3615}
         SingleOutputStreamOperator<JSONObject> intervalDetailInfo = BloomDetail
@@ -371,17 +374,31 @@ public class DwdAge {
 //                .uid("reduce SearchCate Bloom")
 //                .name("reduce SearchCate Bloom");
 
-        SingleOutputStreamOperator<JSONObject> filter = joinSearchCate.filter(o -> o.getJSONObject("user").getString("ageGroup").equals("18-24"));
-        // 计算各个维度的分数
+        // TODO 4. 计算各个维度的分数
         //AgeEachScore-->> {"user":{"birthday":"1977-02-14","gender":"home","weight":"77","ageGroup":"40-49","constellation":"水瓶座","unit_height":"cm","Era":"1970年代","name":"伏聪澜","id":997,"unit_weight":"kg","ts_ms":1747221454365,"age":48,"height":"159"},"Age":{"category_name":"手机","create_time":1747226824000,"os":"iOS","sku_id":12,"price_sensitive":"高价商品","original_total_amount":9197.0,"keyword_type":"健康与养生","tm_name":"苹果","category1_id":2,"tm_id":2,"user_id":997,"id":5314,"keyword":"保健品","order_id":3782,"category3_id":61,"category2_id":13,"time_period":"晚上","ts":1747221566000},"ageScore":{"tm_score":0.04000000000000001,"price_sensitive_score":0.075,"time_period_score":0.04000000000000001,"category_score":0.27,"os_score":0.03,"keyword_type_score":0.12}}
-        SingleOutputStreamOperator<JSONObject> AgeEachScore = filter.map(new AgeScoreFunc());
+        SingleOutputStreamOperator<JSONObject> AgeEachScore = joinSearchCate.map(new AgeScoreFunc());
 //        AgeEachScore.print("AgeEachScore-->");
 
         // 求和
         //{"user":{"birthday":"2001-07-15","gender":"home","weight":"40","ageGroup":"18-24","constellation":"巨蟹座","unit_height":"cm","Era":"2000年代","name":"沈娣","id":221,"unit_weight":"kg","new_ageGroup":"40-49","ts_ms":1747222186982,"age":22,"height":"159"},"Age":{"category_name":"电脑办公","create_time":1747236324000,"os":"Android","sku_id":15,"price_sensitive":"高价商品","original_total_amount":9799.0,"keyword_type":"健康与养生","tm_name":"联想","category1_id":6,"tm_id":3,"user_id":221,"id":5581,"keyword":"健康食品","order_id":3970,"category3_id":287,"category2_id":33,"time_period":"夜间","ts":1747221577000},"ageScore":{"tm_score":0.18,"price_sensitive_score":0.015,"time_period_score":0.09,"category_score":0.06,"os_score":0.08,"TotalScore":0.440,"keyword_type_score":0.015}}
         SingleOutputStreamOperator<JSONObject> TotalScore = AgeEachScore.map(new ScoreCalculator());
 
-        TotalScore.print();
+        SingleOutputStreamOperator<JSONObject> userDedup = TotalScore.keyBy(json -> UserDeduplicationProcessorFunc.buildKey(json.getJSONObject("user")))
+                .process(new UserDeduplicationProcessorFunc())
+                        .uid("Deduplication").name("Deduplication");
+
+        userDedup.print("userDedup-->");
+
+        // TODO 5.输出到kafka
+//        userDedup.map(JSONAware::toJSONString)
+//                        .sinkTo(FlinkSinkUtil.getKafkaSink(Constant.Topic_dwd_Age));
+
+        // TODO 6.输出 csv 格式
+        userDedup.writeAsText("D:\\DaShuJu2\\workspace\\IdeaDemo\\realtime-dev\\docs\\Flink-Task2\\dwd_age.csv");
+
+
+
+
 
 
 
@@ -395,6 +412,7 @@ public class DwdAge {
     public static class ScoreCalculator implements MapFunction<JSONObject, JSONObject> {
         @Override
         public JSONObject map(JSONObject value)   {
+
             JSONObject ageScore = value.getJSONObject("ageScore");
             JSONObject user = value.getJSONObject("user");
             if (ageScore == null) return value;
