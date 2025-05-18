@@ -390,8 +390,8 @@ public class DwdAge {
         userDedup.print("userDedup-->");
 
         // TODO 5.输出到kafka
-//        userDedup.map(JSONAware::toJSONString)
-//                        .sinkTo(FlinkSinkUtil.getKafkaSink(Constant.Topic_dwd_Age));
+        userDedup.map(JSONAware::toJSONString)
+                        .sinkTo(FlinkSinkUtil.getKafkaSink(Constant.Topic_dwd_Age));
 
         // 只取用户JSON
         SingleOutputStreamOperator<JSONObject> user = userDedup.map(o -> o.getJSONObject("user"));
@@ -402,7 +402,7 @@ public class DwdAge {
 
 
         // TODO 6.输出 csv 格式
-//        userDedup.writeAsText("D:\\DaShuJu2\\workspace\\IdeaDemo\\realtime-dev\\docs\\Flink-Task2\\dwd_age.csv");
+        userDedup.writeAsCsv("D:\\DaShuJu2\\workspace\\IdeaDemo\\realtime-dev\\docs\\Flink-Task2\\dwd_age.csv");
 
 
 
