@@ -402,7 +402,7 @@ public class DwdAge {
 
 
         // TODO 6.输出 csv 格式
-        userDedup.writeAsCsv("D:\\DaShuJu2\\workspace\\IdeaDemo\\realtime-dev\\docs\\Flink-Task2\\dwd_age.csv");
+//        userDedup.writeAsCsv("D:\\DaShuJu2\\workspace\\IdeaDemo\\realtime-dev\\docs\\Flink-Task2\\dwd_age.csv");
 
 
 
